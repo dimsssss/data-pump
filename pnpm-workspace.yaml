@@ -1,0 +1,16 @@
+packages:
+  # specify a package in a direct subdir of the root
+  - 'apps/*'
+  # all packages in direct subdirs of packages/
+  - 'packages/*'
+  # exclude packages that are inside test directories
+  - '!**/test/**'
+allowBuilds:
+  electron: true
+  electron-winstaller: set this to true or false
+  esbuild: true
+
+packageExtensions:
+  vite-plugin-electron:
+    peerDependencies:
+      electron: "*"

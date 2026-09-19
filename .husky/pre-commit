@@ -1,0 +1,3 @@
+# pnpm exec build --workspaces --if-present
+pnpm exec lint-staged
+# pnpm test

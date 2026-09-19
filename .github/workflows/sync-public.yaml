@@ -1,0 +1,22 @@
+name: Sync to public repo
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    if: github.event.repository.private == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Push main to public repo
+        env:
+          TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          git remote add public https://x-access-token:${TOKEN}@github.com/dimsssss/data-pump.git
+          git push public main

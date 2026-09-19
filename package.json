@@ -1,0 +1,54 @@
+{
+  "name": "data-pump",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky",
+    "desktop": "pnpm --filter desktop dev",
+    "desktop:build": "pnpm --filter desktop build",
+    "build": ""
+  },
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "conventions/*"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.21.0",
+      "onFail": "download"
+    }
+  },
+  "type": "module",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.10.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.0",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "tsc --noEmit",
+      "prettier --write",
+      "eslint --fix"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dimsssss/data-pump.git"
+  },
+  "homepage": "https://github.com/dimsssss/data-pump#readme",
+  "bugs": {
+    "url": "https://github.com/dimsssss/data-pump/issues"
+  }
+}
