@@ -13,10 +13,10 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SYNC_DEPLOY_KEY }}
 
       - name: Push main to public repo
-        env:
-          TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
-        run: |
-          git remote add public https://x-access-token:${TOKEN}@github.com/dimsssss/data-pump.git
-          git push public main
+        run: git push git@github.com:dimsssss/data-pump.git HEAD:main
+ 
