@@ -1,215 +1,13 @@
 import { DriverBadge } from "./DriverBadge";
 
-export type Driver = "mysql" | "sqlite";
-
-export interface General {
-  connectionType: string;
-  driver: Driver;
-  host: string;
-  port?: number;
-  authentication?: string;
-  user?: string;
-  password?: string;
-  database?: string;
-  url: string;
-}
-
-export interface ConnectionInfo {
-  name: string;
-  comment?: string;
-  general: General;
-}
-
 export interface ConnectionItemProps {
+  name: string;
+  driver: string;
+  // 이름 아래 보조 텍스트 (예: 접속 URL)
+  description: string;
   selected: boolean;
-  info: ConnectionInfo;
   onSelect: () => void;
 }
-
-export const dummies: ConnectionInfo[] = [
-  {
-    name: "local-postgres",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "mysql",
-      host: "./sample.sqlite3",
-      port: 1234,
-      authentication: "User & Password",
-      user: "mysql",
-      password: "1234",
-      database: "sample-mysql",
-      url: "mysql://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "sample-sqlite3",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "sqlite",
-      host: "./sample.sqlite3",
-      database: "sample-sqlitel",
-      url: "sqlite://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "local-postgres",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "mysql",
-      host: "./sample.sqlite3",
-      port: 1234,
-      authentication: "User & Password",
-      user: "mysql",
-      password: "1234",
-      database: "sample-mysql",
-      url: "mysql://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "sample-sqlite3",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "sqlite",
-      host: "./sample.sqlite3",
-      database: "sample-sqlitel",
-      url: "sqlite://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "local-postgres",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "mysql",
-      host: "./sample.sqlite3",
-      port: 1234,
-      authentication: "User & Password",
-      user: "mysql",
-      password: "1234",
-      database: "sample-mysql",
-      url: "mysql://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "sample-sqlite3",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "sqlite",
-      host: "./sample.sqlite3",
-      database: "sample-sqlitel",
-      url: "sqlite://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "local-postgres",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "mysql",
-      host: "./sample.sqlite3",
-      port: 1234,
-      authentication: "User & Password",
-      user: "mysql",
-      password: "1234",
-      database: "sample-mysql",
-      url: "mysql://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "sample-sqlite3",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "sqlite",
-      host: "./sample.sqlite3",
-      database: "sample-sqlitel",
-      url: "sqlite://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "local-postgres",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "mysql",
-      host: "./sample.sqlite3",
-      port: 1234,
-      authentication: "User & Password",
-      user: "mysql",
-      password: "1234",
-      database: "sample-mysql",
-      url: "mysql://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "sample-sqlite3",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "sqlite",
-      host: "./sample.sqlite3",
-      database: "sample-sqlitel",
-      url: "sqlite://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "local-postgres",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "mysql",
-      host: "./sample.sqlite3",
-      port: 1234,
-      authentication: "User & Password",
-      user: "mysql",
-      password: "1234",
-      database: "sample-mysql",
-      url: "mysql://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "sample-sqlite3",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "sqlite",
-      host: "./sample.sqlite3",
-      database: "sample-sqlitel",
-      url: "sqlite://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "local-postgres",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "mysql",
-      host: "./sample.sqlite3",
-      port: 1234,
-      authentication: "User & Password",
-      user: "mysql",
-      password: "1234",
-      database: "sample-mysql",
-      url: "mysql://mysql@localhost:1234/sample-mysql",
-    },
-  },
-  {
-    name: "sample-sqlite3",
-    comment: "",
-    general: {
-      connectionType: "default",
-      driver: "sqlite",
-      host: "./sample.sqlite3",
-      database: "sample-sqlitel",
-      url: "sqlite://mysql@localhost:1234/sample-mysql",
-    },
-  },
-];
 
 const DRIVER_BADGES: Record<string, { label: string; color: string }> = {
   mysql: { label: "MY", color: "#00758F" },
@@ -219,11 +17,13 @@ const DRIVER_BADGES: Record<string, { label: string; color: string }> = {
 const FALLBACK_BADGE = { label: "DB", color: "#4B5563" };
 
 export function ConnectionItem({
-  info,
+  name,
+  driver,
+  description,
   selected,
   onSelect,
 }: ConnectionItemProps) {
-  const badge = DRIVER_BADGES[info.general.driver] ?? FALLBACK_BADGE;
+  const badge = DRIVER_BADGES[driver] ?? FALLBACK_BADGE;
 
   return (
     <li className="px-2">
@@ -239,13 +39,13 @@ export function ConnectionItem({
         <DriverBadge label={badge.label} color={badge.color} />
         <div className="flex min-w-0 flex-1 flex-col gap-px">
           <p className="truncate text-xs/[normal] text-[#E6F2EC] group-data-[selected=true]:font-semibold">
-            {info.name}
+            {name}
           </p>
           <p
             className="truncate text-[10px]/[normal] text-[#7F9A8E]"
-            title={info.general.url}
+            title={description}
           >
-            {info.general.url}
+            {description}
           </p>
         </div>
       </button>

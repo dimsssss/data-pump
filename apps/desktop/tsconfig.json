@@ -21,6 +21,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "electron", "main.ts", "preload.ts", "*.d.ts"],
+  "include": ["src", "main.ts", "preload.ts", "*.d.ts", "main.driver.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

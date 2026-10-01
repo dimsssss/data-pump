@@ -39,6 +39,11 @@ const config: ForgeConfig = {
             target: "main",
           },
           {
+            entry: "./main.driver.ts",
+            config: "vite.main.config.mjs",
+            target: "main",
+          },
+          {
             entry: "./preload.ts",
             config: "vite.preload.config.mjs",
             target: "preload",

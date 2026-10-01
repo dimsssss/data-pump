@@ -1,0 +1,125 @@
+# data pump
+
+## 프로젝트 구조
+
+pnpm 워크스페이스로 구성한 모노레포입니다. 자세한 설계와 결정 이유는 [docs/architecture.md](docs/architecture.md)에 정리했습니다.
+
+```
+data-pump/
+├── apps/
+│   └── desktop/              Electron 데스크톱 앱
+│       ├── main.ts           main 진입점: 앱 생명주기, 창, data layer 조립과 IPC 연결
+│       ├── preload.ts        preload 진입점: ui가 data에 접근하는 데 필요한 API만 노출
+│       ├── main.driver.ts    utility process 진입점: 드라이버 설치·DB 접속
+│       └── src/
+│           ├── ui/           UI layer (기능 단위): <기능>/views, <기능>/view-models
+│           └── data/         Data layer (종류 단위): clients, repositories, services
+├── packages/
+│   ├── components/           공용 React 컴포넌트
+│   ├── utils/                접속·드라이버 로직과 renderer와 공유하는 타입
+│   │   └── src/
+│   │       ├── connection/   ConnectionManager, ConnectionStorageService, driver/
+│   │       └── installer/    드라이버 다운로드·서명 검증·로드
+│   ├── conventions/          공용 ESLint·Prettier 설정
+│   └── drivers/              DB 드라이버 번들 빌드·서명 (CI 전용)
+└── docs/                     설계 문서
+```
+
+| 패키지                 | 역할                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `apps/desktop`         | 화면(ui)과 데이터 접근(data)을 레이어로 나눈 Electron 앱입니다.                                                    |
+| `packages/components`  | 특정 화면에 묶이지 않는 UI 컴포넌트입니다.                                                                         |
+| `packages/utils`       | main·utility process에서 쓰는 로직(`index.ts`)과 renderer에서도 안전한 타입(`client.ts`)을 입구로 나눠 제공합니다. |
+| `packages/conventions` | 모든 패키지가 공유하는 lint·포맷 설정입니다.                                                                       |
+| `packages/drivers`     | 앱에 포함하지 않는 DB 드라이버를 번들링하고 서명해 GitHub Releases로 배포합니다.                                   |
+
+## 애플리케이션 구조
+
+electron을 사용해야 하기 때문에 어느 정도 강제된 부분이 있습니다. electron은 chromium의 멀티 프로세스 구조를 그대로 채택하고 있습니다. 하나의 메인 프로세스가 앱 전체를 관리하고, 창(탭)을 추가할 때마다 새로운 렌더러 프로세스가 생성되는 구조입니다.
+개별 렌더러는 서로 다른 프로세스이기 때문에 한 화면에서 발생한 오류가 다른 화면으로 전파되지 않습니다. 다만 메인 프로세스가 종료되면 모든 창이 함께 종료되므로, 메인 프로세스는 안정성을 가장 우선해야 합니다.
+electron은 이 구조 위에 메인 프로세스의 Node.js 통합과 preload 스크립트를 추가하여 main, preload, renderer라는 세 요소로 앱을 구성합니다.
+
+main은 메인 프로세스에서 실행되는 코드로, 창 생성과 앱 생명주기 관리, 그리고 파일 시스템·네트워크·OS API 같은 외부 시스템 접근을 담당합니다. preload는 renderer가 main과 IPC로 통신할 수 있도록 필요한 API만 안전하게 노출하는 스크립트입니다. renderer는 화면을 그리고 사용자 입력을 받는 코드입니다.
+그림으로 나타내면 다음과 같습니다.
+
+```mermaid
+flowchart LR
+  subgraph M["main 프로세스 (Node)"]
+    life["앱 생명주기 · 창 관리"]
+    os["파일 · 네트워크 · OS API"]
+  end
+  subgraph W1["창 1"]
+    P1["preload"] --- R1["renderer"]
+  end
+  subgraph W2["창 2"]
+    P2["preload"] --- R2["renderer"]
+  end
+  M <-- "IPC" --> P1
+  M <-- "IPC" --> P2
+  M -- "fork" --> U["utility process<br/>(드라이버 설치 · DB 접속)"]
+```
+
+DB 드라이버처럼 오래 걸리거나 죽을 수 있는 작업은 main이 아닌 utility process에서 실행해, 메인 프로세스의 안정성을 지킵니다.
+
+다만 이 세 요소는 보안과 격리를 위한 런타임 경계일 뿐, 코드의 책임을 나누는 논리적 레이어와 1:1로 대응하지는 않습니다. 그래서 프로세스 경계는 electron의 제약으로 그대로 따르되, 책임 분리는 MVVM 아키텍처를 기준으로 다음과 같이 배치했습니다.
+
+- UI layer (renderer): View와 ViewModel이 모두 renderer에 위치합니다. View는 화면을 그리고 사용자 이벤트를 ViewModel에 전달하며, 비즈니스 로직은 갖지 않습니다. ViewModel은 화면에 필요한 상태를 보관하고, 데이터를 화면에 맞게 가공하며, View가 호출할 command를 노출합니다. View와 ViewModel은 기능 단위로 1:1 관계를 가집니다.
+- Service 인터페이스 (preload, data/clients): preload는 main 프로세스라는 데이터 소스로 가는 통로를 감싸는, 상태를 갖지 않는 어댑터입니다. renderer 쪽에서는 `data/clients`가 preload가 노출한 API를 감쌉니다. ViewModel은 clients를 통해서만 main에 접근하므로, renderer는 IPC의 구체적인 구현을 알 필요가 없습니다.
+- Data layer (main): Repository와 Service가 main에 위치합니다. Service는 파일 시스템, 네트워크, OS API 같은 외부 데이터 소스를 상태 없이 감싸고, Repository는 이를 이용해 캐싱·에러 처리·재시도 등을 담당하며 앱 데이터의 source of truth 역할을 합니다.
+
+main 프로세스의 창 생성과 앱 생명주기 관리는 MVVM의 범위 밖에 있는 electron 고유의 책임이므로, data layer와 별도의 모듈로 분리했습니다.
+
+디렉터리는 프로세스가 아니라 레이어 기준으로 나눕니다. electron 고유의 코드는 루트의 진입점(`main.ts`, `preload.ts`, `main.driver.ts`)에만 두고, `src/` 안에는 `ui/`와 `data/`만 둡니다. 레이어와 프로세스의 관계를 요약하면 다음과 같습니다.
+
+```mermaid
+flowchart LR
+  subgraph R["renderer"]
+    direction TB
+    V["View<br/>ui/*/views"] --> VM["ViewModel<br/>ui/*/view-models"] --> C["data/clients"]
+  end
+  subgraph P["preload"]
+    B["contextBridge"]
+  end
+  subgraph M["main"]
+    direction TB
+    REPO["Repository<br/>data/repositories"] --> SVC["Service<br/>data/services"]
+  end
+  subgraph U["utility process"]
+    direction TB
+    CM["ConnectionManager"] --> DRV["Driver"]
+    INS["DriverInstaller"]
+  end
+  C --> B -- "IPC" --> REPO
+  SVC -- "postMessage" --> U
+  SVC --> EXT[("connections.json<br/>OS 보안 저장소")]
+  DRV --> DB[("Database")]
+  INS --> GH[("GitHub Releases")]
+
+  classDef ui fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e
+  classDef data fill:#dcfce7,stroke:#15803d,color:#14532d
+  class V,VM ui
+  class C,REPO,SVC,CM,DRV,INS data
+```
+
+의존 방향은 `View → ViewModel → data/clients → (preload, IPC) → Repository → Service` 한 방향이며, 루트의 `eslint.config.js`가 반대 방향 import와 renderer 코드의 Node·Electron 모듈 사용을 막습니다. 레이어별 책임, 요청 흐름, lint 규칙 전체는 [docs/architecture.md](docs/architecture.md)를 참고하세요.
+
+이렇게 electron이 강제하는 프로세스 구조는 유지하면서, 각 코드의 책임은 MVVM의 관심사 분리 원칙에 맞게 나누도록 앱을 설계했습니다.
+
+참고 링크
+
+- https://www.electronjs.org/docs/latest/
+- https://docs.flutter.dev/app-architecture/guide
+
+## 파일 이름 규칙
+
+파일 이름은 그 파일의 대표 export를 따릅니다.
+
+| 대표 export                             | 표기                            | 예시                                                                                    |
+| --------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------- |
+| React 컴포넌트, 클래스, 타입·인터페이스 | PascalCase (export 이름과 동일) | `Button.tsx`, `ConnectionManager.ts`, `DriverName.ts`                                   |
+| React 훅                                | camelCase, `use` 접두어         | `useConnectionViewModel.ts`                                                             |
+| 함수 모음, 객체 인스턴스, 스크립트      | kebab-case                      | `checksum.ts`, `mysql-driver.ts`, `connection-client.ts`, `sign-manifest.mjs`           |
+| 프로세스 진입점, 도구 설정, 전역 선언   | 각 도구의 관례                  | `main.ts`, `preload.ts`, `main.driver.ts`, `forge.config.ts`, `global.d.ts`, `index.ts` |
+
+- 테스트 파일은 대상 소스 파일과 같은 이름에 `.test.ts`를 붙이고, `test/` 아래에 `src/`와 같은 디렉터리 구조로 둡니다.
+- 공용 컴포넌트(`packages/components`)는 특정 화면에 묶이지 않는 이름을 씁니다. 화면 이름 접두어(`Connection…`)는 그 화면 전용 컴포넌트에만 붙입니다.
