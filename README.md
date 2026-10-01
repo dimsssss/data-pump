@@ -143,6 +143,16 @@ flowchart LR
 - https://www.electronjs.org/docs/latest/
 - https://docs.flutter.dev/app-architecture/guide
 
+## 개발 노트
+
+개발하면서 겪은 이슈와 해결 과정, 인상 깊었던 점을 기록합니다.
+
+### Electron(macOS)에서 네이티브 `<select>` 선택이 늦게 반영되는 문제
+
+DB 종류를 고르는 `<select>`에서 항목을 선택한 뒤 화면에 반영되기까지 1~2초가 걸렸습니다. `<div>`로 만든 커스텀 드롭다운으로 바꿔 해결했습니다.
+
+자세한 과정: [electron 환경에서 select box 속도 지연](https://dimsss.notion.site/electron-select-box-3ece0b2007b58099953ddac41b8e30c6)
+
 ## 파일 이름 규칙
 
 파일 이름은 그 파일의 대표 export를 따릅니다.
