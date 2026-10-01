@@ -1,0 +1,20 @@
+{
+  "name": "drivers",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ./test.mjs",
+    "build": "node ./builds.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "mysql2": "3.24.4"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

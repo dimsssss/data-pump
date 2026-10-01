@@ -1,0 +1,73 @@
+name: db-ide-test
+
+x-mysql-env: &mysql-env
+  MYSQL_ROOT_PASSWORD: rootpass
+  MYSQL_DATABASE: testdb
+  MYSQL_USER: app
+  MYSQL_PASSWORD: apppass
+
+x-healthcheck: &healthcheck
+  test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+  interval: 5s
+  timeout: 3s
+  retries: 30
+
+services:
+  # 기본: TLS 선택 사항, MySQL이 자동 생성한 자체 서명 인증서
+  mysql84:
+    image: mysql:8.4
+    environment: *mysql-env
+    healthcheck: *healthcheck
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - mysql84-data:/var/lib/mysql
+
+  # TLS 강제 + 테스트 CA로 서명한 인증서 (호스트명 검증 가능)
+  mysql84-tls:
+    image: mysql:8.4
+    environment: *mysql-env
+    healthcheck: *healthcheck
+    command:
+      - --require-secure-transport=ON
+      - --ssl-ca=/etc/mysql/certs/ca.pem
+      - --ssl-cert=/etc/mysql/certs/server-cert.pem
+      - --ssl-key=/etc/mysql/certs/server-key.pem
+      - --tls-version=TLSv1.2,TLSv1.3
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./certs:/etc/mysql/certs:ro
+      - mysql84-tls-data:/var/lib/mysql
+
+  # 이전 버전 호환성
+  mysql80:
+    image: mysql:8.0
+    environment: *mysql-env
+    healthcheck: *healthcheck
+    ports:
+      - "127.0.0.1:3308:3306"
+    volumes:
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - mysql80-data:/var/lib/mysql
+
+  # 구버전 (mysql_native_password 기본). 필요할 때만 실행
+  mysql57:
+    image: mysql:5.7
+    platform: linux/amd64   # 5.7은 ARM 이미지가 없어서 Apple Silicon에서는 에뮬레이션
+    profiles: [legacy]
+    environment: *mysql-env
+    healthcheck: *healthcheck
+    ports:
+      - "127.0.0.1:3309:3306"
+    volumes:
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - mysql57-data:/var/lib/mysql
+
+volumes:
+  mysql84-data:
+  mysql84-tls-data:
+  mysql80-data:
+  mysql57-data:

@@ -145,3 +145,5 @@ vite.config.ts.timestamp-*
 # electron
 **/release
 **/dist-electron
+# cert
+/**/certs/**

@@ -1,0 +1,169 @@
+name: Driver bundles
+
+on:
+  push:
+    branches: [main, task-02-connection-database]
+    paths:
+      - 'packages/drivers/**'
+      - '.github/workflows/drivers.yaml'
+  pull_request:
+    paths:
+      - 'packages/drivers/**'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 1 * *'   # manifest 만료(30일) 갱신
+
+env:
+  NODE_VERSION: '22.14.0'   # Electron에 포함된 Node 버전과 맞출 것
+  PNPM_VERSION: '9'
+
+defaults:
+  run:
+    working-directory: packages/drivers
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-test-password"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: packages/drivers/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Audit
+        run: pnpm audit --prod --audit-level high
+
+      - name: Build bundles
+        run: pnpm build
+
+      - name: Smoke test
+        run: pnpm test
+        env:
+          MYSQL_PASSWORD: rootpass
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: driver-bundles
+          path: packages/drivers/dist/
+          retention-days: 7
+
+  publish:
+    needs: build
+    # private 원본에서만 실행 (public 미러에서 중복 실행 방지)
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.repository.private == true
+    runs-on: ubuntu-latest
+    environment: driver-release
+    permissions:
+      contents: read
+    env:
+      DIST_REPO: dimsssss/data-pump
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: driver-bundles
+          path: packages/drivers/dist
+
+      - name: Check if drivers changed
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.DRIVER_DIST_TOKEN }}
+        run: |
+          CURRENT=$(jq -Sc '[.[] | {id, sha256}]' dist/build-result.json)
+          PUBLISHED=""
+          if gh release download drivers-manifest --repo "$DIST_REPO" \
+               --pattern manifest.json --dir /tmp --clobber 2>/dev/null; then
+            PUBLISHED=$(jq -Sc '[.drivers | to_entries[] | {id: .key, sha256: .value.sha256}]' /tmp/manifest.json)
+          fi
+
+          if [ "$CURRENT" = "$PUBLISHED" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare tag
+        id: tag
+        run: |
+          SEQ=$(date +%s)
+          if [ "${{ steps.check.outputs.changed }}" = "false" ]; then
+            # 드라이버 변경 없음: 기존 URL의 태그를 재사용
+            TAG=$(jq -r '.drivers | to_entries[0].value.url | split("/")[-2]' /tmp/manifest.json)
+          else
+            TAG="drivers-$SEQ"
+          fi
+          echo "seq=$SEQ" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Sign manifest
+        run: node ./sign-manifest.mjs
+        env:
+          DRIVER_SIGNING_KEY: ${{ secrets.DRIVER_SIGNING_KEY }}
+          DRIVER_KEY_ID: ${{ vars.DRIVER_KEY_ID }}
+          DRIVER_SEQUENCE: ${{ steps.tag.outputs.seq }}
+          DRIVER_BASE_URL: https://github.com/${{ env.DIST_REPO }}/releases/download/${{ steps.tag.outputs.tag }}
+
+      # 드라이버 번들: 버전 태그 릴리스에 업로드 (파일명에 해시가 있어 불변)
+      - name: Publish driver bundles
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DRIVER_DIST_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          mapfile -t bundles < <(jq -r '.[].file | "dist/" + .' dist/build-result.json)
+          NOTES=$(jq -r '.[] | "- \(.package) \(.version) (sha256: \(.sha256[0:12]))"' dist/build-result.json)
+
+          gh release create "$TAG" --repo "$DIST_REPO" --draft \
+            --title "$TAG" --notes "$NOTES" "${bundles[@]}"
+
+          # latest는 건드리지 않음 (추후 앱 릴리스와 충돌 방지)
+          gh release edit "$TAG" --repo "$DIST_REPO" --draft=false --latest=false
+
+      # manifest: 앱이 참조하는 고정 태그에 교체 업로드
+      - name: Update manifest
+        env:
+          GH_TOKEN: ${{ secrets.DRIVER_DIST_TOKEN }}
+        run: |
+          gh release view drivers-manifest --repo "$DIST_REPO" >/dev/null 2>&1 || \
+            gh release create drivers-manifest --repo "$DIST_REPO" \
+              --title "Driver manifest" \
+              --notes "앱이 참조하는 최신 드라이버 목록" --latest=false
+
+          # 서명 → manifest 순서 (검증 실패 구간 최소화)
+          gh release upload drivers-manifest --repo "$DIST_REPO" dist/manifest.json.sig --clobber
+          gh release upload drivers-manifest --repo "$DIST_REPO" dist/manifest.json --clobber

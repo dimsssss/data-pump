@@ -3,12 +3,17 @@ packages:
   - 'apps/*'
   # all packages in direct subdirs of packages/
   - 'packages/*'
+  - '!packages/drivers'
   # exclude packages that are inside test directories
   - '!**/test/**'
 allowBuilds:
   electron: true
-  electron-winstaller: set this to true or false
+  electron-winstaller: true
   esbuild: true
+
+
+nodeLinker: hoisted
+blockExoticSubdeps: false
 
 packageExtensions:
   vite-plugin-electron:
