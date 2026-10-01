@@ -15,9 +15,12 @@ const config: ForgeConfig = {
       },
     },
     {
-      name: "@electron-forge/maker-zip",
+      // 열면 Applications로 끌어다 놓는 설치 화면이 나오는 macOS 배포 파일
+      name: "@electron-forge/maker-dmg",
       platforms: ["darwin"],
-      config: {},
+      config: {
+        format: "ULFO",
+      },
     },
     {
       name: "@electron-forge/maker-deb",

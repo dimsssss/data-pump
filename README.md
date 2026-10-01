@@ -1,5 +1,34 @@
 # data pump
 
+> [!WARNING]
+> **베타 버전입니다.** 아직 개발 중이라 데이터 손실이나 예기치 않은 동작이 일어날 수 있습니다. **운영(실) 환경의 데이터베이스에는 절대 연결하지 마세요.** 로컬이나 테스트용 데이터베이스에서만 사용하세요.
+
+data pump는 여러 데이터베이스에 접속해 데이터를 조회하고 다루는 Electron 기반 데스크톱 DB 클라이언트입니다.
+
+- **접속 관리**: DB 접속 정보를 저장해 두고 다시 사용할 수 있습니다. 비밀번호는 평문으로 두지 않고 OS 보안 저장소(macOS 키체인 등)를 이용해 암호화해 저장합니다.
+- **드라이버 동적 설치**: DB 드라이버를 앱에 미리 넣지 않습니다. 사용자가 고른 DB의 드라이버만 GitHub Releases에서 내려받고, 서명된 manifest와 체크섬으로 검증한 뒤 설치합니다.
+- **SQL 작업 공간**: 접속하면 바로 SQL 에디터에서 쿼리를 작성할 수 있습니다.
+
+현재 MySQL을 지원하며, SQLite와 테이블 탐색 화면은 개발 중입니다.
+
+## 설치
+
+[Releases](https://github.com/dimsssss/data-pump/releases/latest)에서 `data-pump-<버전>-mac-<arch>.dmg`를 받아 열고, `data pump.app`을 Applications 폴더로 끌어다 놓습니다. 현재는 macOS 빌드만 배포하며, 릴리스의 "Source code"는 받지 않아도 됩니다.
+
+앱이 Apple 공증을 받지 않아 처음 실행할 때 "확인되지 않은 개발자" 경고가 뜹니다. Applications 폴더에서 앱을 우클릭 → 열기로 한 번 실행하면 이후에는 바로 열립니다.
+
+## 배포
+
+macOS 빌드는 macOS에서 다음 명령으로 배포합니다. 릴리스에는 빌드된 앱(dmg)과 sha256 체크섬만 올립니다.
+
+```bash
+pnpm release:mac            # apps/desktop/package.json의 version으로 v<version> 릴리스 생성
+pnpm release:mac --dry-run  # 빌드만 하고 업로드하지 않음 (산출물: apps/desktop/out/release)
+```
+
+- 배포 전에 `apps/desktop/package.json`의 `version`을 올리고, main을 push해 public 저장소에 동기화된 상태여야 합니다. 릴리스 태그는 그 커밋을 가리킵니다.
+- 아키텍처는 기본으로 현재 머신을 따르며, `ARCH=x64 pnpm release:mac`처럼 바꿀 수 있습니다.
+
 ## 프로젝트 구조
 
 pnpm 워크스페이스로 구성한 모노레포입니다. 자세한 설계와 결정 이유는 [docs/architecture.md](docs/architecture.md)에 정리했습니다.

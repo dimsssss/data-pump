@@ -8,6 +8,7 @@
     "prepare": "husky",
     "desktop": "pnpm --filter desktop start",
     "desktop:build": "pnpm --filter desktop build",
+    "release:mac": "./scripts/release-mac.sh",
     "build": ""
   },
   "private": true,
