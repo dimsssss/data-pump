@@ -15,7 +15,11 @@ data pump는 여러 데이터베이스에 접속해 데이터를 조회하고 �
 
 [Releases](https://github.com/dimsssss/data-pump/releases/latest)에서 `data-pump-<버전>-mac-<arch>.dmg`를 받아 열고, `data pump.app`을 Applications 폴더로 끌어다 놓습니다. 현재는 macOS 빌드만 배포하며, 릴리스의 "Source code"는 받지 않아도 됩니다.
 
-앱이 Apple 공증을 받지 않아 처음 실행할 때 "확인되지 않은 개발자" 경고가 뜹니다. Applications 폴더에서 앱을 우클릭 → 열기로 한 번 실행하면 이후에는 바로 열립니다.
+앱이 Apple 공증을 받지 않아 처음 실행하면 "Apple은 'data pump'에 악성 코드가 없음을 확인할 수 없습니다" 경고가 뜹니다. 경고 창에서 **완료**를 누른 뒤 **시스템 설정 → 개인정보 보호 및 보안**의 보안 항목에서 **그래도 열기**를 누르면, 이후에는 바로 열립니다. 터미널에서는 다음 명령으로 같은 효과를 낼 수 있습니다.
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/data pump.app"
+```
 
 ## 배포
 

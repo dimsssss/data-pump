@@ -18,7 +18,15 @@ if (started) {
 // "data-pump"로 고정한다. app ready 이전에 설정해야 모든 데이터가 이 위치를 쓴다.
 // app 이름 자체는 바꾸지 않는다: safeStorage의 키체인 항목이 앱 이름 기준이라 바꾸면
 // 이미 암호화해 둔 비밀번호를 복호화할 수 없게 된다.
-app.setPath("userData", path.join(app.getPath("appData"), "data-pump"));
+// 개발 실행(electron-forge start)은 "data-pump-dev"를 써서, 개발 중 만든 접속 정보와 드라이버가
+// 설치한 배포용 앱에 보이지 않게 한다.
+app.setPath(
+  "userData",
+  path.join(
+    app.getPath("appData"),
+    app.isPackaged ? "data-pump" : "data-pump-dev",
+  ),
+);
 
 let win: BrowserWindow | null = null;
 
@@ -33,7 +41,7 @@ const driverProcess = createDriverProcess({
 });
 
 // 접속 정보는 OS별 표준 앱 설정 위치에 저장한다 (app.getPath("userData"))
-//   macOS:   ~/Library/Application Support/data-pump/connections.json
+//   macOS:   ~/Library/Application Support/data-pump/connections.json (개발 실행은 data-pump-dev)
 //   Windows: %APPDATA%\data-pump\connections.json
 //   Linux:   $XDG_CONFIG_HOME/data-pump/connections.json (기본 ~/.config)
 // safeStorage는 app ready 이후에만 쓸 수 있어 처음 사용할 때 만든다

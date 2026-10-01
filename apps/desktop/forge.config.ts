@@ -4,7 +4,17 @@ const config: ForgeConfig = {
   packagerConfig: {
     name: "data pump",
     asar: true,
-    osxSign: {},
+    // Developer ID 인증서가 없으므로 ad-hoc("-")으로 앱 번들 전체를 다시 서명한다.
+    // 서명하지 않으면 Electron 바이너리의 원래 서명이 깨진 채로 남아,
+    // 다운로드한 앱을 macOS가 "손상됨"으로 판정해 열 수 없다.
+    // hardened runtime은 끈다. 켜면 같은 Team ID로 서명된 라이브러리만 로드할 수 있는데
+    // ad-hoc 서명에는 Team ID가 없어 Electron Framework를 로드하지 못하고 실행 직후 종료된다.
+    // (hardened runtime은 Apple 공증에만 필요하다)
+    osxSign: {
+      identity: "-",
+      identityValidation: false,
+      optionsForFile: () => ({ hardenedRuntime: false }),
+    },
   },
   makers: [
     {
