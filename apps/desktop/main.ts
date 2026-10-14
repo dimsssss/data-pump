@@ -4,7 +4,10 @@ import path from "node:path";
 import started from "electron-squirrel-startup";
 import { ConnectionStorageService, type ConnectionForm } from "@packages/utils";
 import {
+  activate,
   connect,
+  deactivate,
+  getActive,
   getOverview,
   listConnections,
 } from "./src/data/repositories/connection-repository";
@@ -76,6 +79,14 @@ ipcMain.handle("connection:connect", (e, form: ConnectionForm) =>
 ipcMain.handle("connection:overview", (_e, connectionId: string) =>
   getOverview(connectionId, driverProcess.request),
 );
+
+ipcMain.handle("connection:activate", (_e, connectionId: string) =>
+  activate(connectionId),
+);
+
+ipcMain.handle("connection:getActive", () => getActive(driverProcess.request));
+
+ipcMain.handle("connection:deactivate", () => deactivate());
 
 // ---------------------------------------------------------------------------
 // 창, 앱 생명주기

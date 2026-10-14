@@ -106,4 +106,10 @@ export interface ConnectionClient {
   onProgress(cb: (p: ConnectProgress) => void): () => void;
   // 접속 중인 세션으로 DB 개요를 조회한다
   overview(connectionId: string): Promise<DatabaseOverview>;
+  // 접속에 성공한 connectionId를 현재 접속으로 정한다 (Apply). 작업 화면에 표시할 정보를 돌려준다
+  activate(connectionId: string): Promise<ActiveConnection>;
+  // 현재 접속. 없거나 DB 세션이 끊겼으면 null (새로고침 후 화면 복원용)
+  getActive(): Promise<ActiveConnection | null>;
+  // 현재 접속을 해제한다 (작업 화면에서 접속 화면으로 돌아갈 때)
+  deactivate(): Promise<void>;
 }

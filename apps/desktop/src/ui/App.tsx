@@ -1,16 +1,18 @@
-import { useState } from "react";
-import type { ActiveConnection } from "@packages/utils/client";
 import Workspace from "./workspace/views/Workspace";
 import Connection from "./connection/views/Connection";
+import { useAppViewModel } from "./view-models/useAppViewModel";
 
 // 화면 전환: 접속 설정 화면에서 Apply하면 해당 접속으로 작업 화면(Workspace, SQL 편집기)을 연다
 function App() {
-  const [active, setActive] = useState<ActiveConnection | null>(null);
+  const { state, open, leave } = useAppViewModel();
 
-  return active ? (
-    <Workspace connection={active} />
+  // main에 현재 접속을 묻는 짧은 순간에는 아무것도 그리지 않는다 (화면 깜박임 방지)
+  if (state.kind === "loading") return null;
+
+  return state.active ? (
+    <Workspace connection={state.active} onLeave={leave} />
   ) : (
-    <Connection onApply={setActive} />
+    <Connection onApply={open} />
   );
 }
 

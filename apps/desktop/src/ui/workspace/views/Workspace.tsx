@@ -7,7 +7,14 @@ import { WorkspaceSidebar } from "./WorkspaceSidebar";
 import { WorkspaceStatusBar } from "./WorkspaceStatusBar";
 
 // 접속 설정 화면에서 Apply로 넘어오면 DB 개요(OVERVIEW 탭)부터 보여준다
-function Workspace({ connection }: { connection: ActiveConnection }) {
+function Workspace({
+  connection,
+  onLeave,
+}: {
+  connection: ActiveConnection;
+  // 접속 화면으로 돌아가기
+  onLeave: () => void;
+}) {
   const vm = useWorkspaceViewModel(connection);
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#0B1E17]">
@@ -32,6 +39,7 @@ function Workspace({ connection }: { connection: ActiveConnection }) {
               overview={vm.overview}
               status={vm.overviewStatus}
               onRefresh={vm.refreshOverview}
+              onLeave={onLeave}
               onNewQuery={() => vm.setActiveTab("query")}
             />
           )}

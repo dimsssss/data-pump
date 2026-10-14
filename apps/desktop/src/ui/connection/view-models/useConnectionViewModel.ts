@@ -41,10 +41,6 @@ export function describeConnection(c: SavedConnection) {
   return `${c.driver}://${user}${c.host}${port}${db}`;
 }
 
-// 이름을 비워 두고 접속했을 때 앱 화면에 표시할 이름
-const describeForm = (f: ConnectionForm) =>
-  `${f.user ? `${f.user}@` : ""}${f.host || f.url}${f.port ? `:${f.port}` : ""}`;
-
 const toForm = (c: SavedConnection): ConnectionForm => ({
   id: c.id,
   name: c.name,
@@ -75,10 +71,10 @@ export function useConnectionViewModel(
   const [connections, setConnections] = useState<SavedConnection[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const connecting = useRef(false);
-  // 마지막으로 접속에 성공했을 때의 폼 내용과 접속. 이후 폼을 고치면 다시 접속해야 한다
+  // 마지막으로 접속에 성공했을 때의 폼 내용과 접속 id. 이후 폼을 고치면 다시 접속해야 한다
   const lastConnected = useRef<{
     snapshot: string;
-    active: ActiveConnection;
+    id: string;
   } | null>(null);
 
   const refresh = useCallback(async () => {
@@ -150,18 +146,9 @@ export function useConnectionViewModel(
       const result = await connectionClient.connect(form);
       // 이후 다시 접속하면 같은 항목을 갱신하도록 발급된 id를 보관
       const connectedForm = { ...form, id: result.id };
-      const active: ActiveConnection = {
-        id: result.id,
-        name: form.name.trim() || describeForm(connectedForm),
-        driver: form.driver,
-        serverVersion: result.serverVersion,
-        database: form.database,
-        address: `${describeForm(connectedForm)}${form.database ? `/${form.database}` : ""}`,
-        connectedAt: new Date().toISOString(),
-      };
       lastConnected.current = {
         snapshot: JSON.stringify(connectedForm),
-        active,
+        id: result.id,
       };
       setForm(connectedForm);
       setSelectedId(result.id);
@@ -173,7 +160,7 @@ export function useConnectionViewModel(
           ? `접속 정보 저장: ${result.savedTo}`
           : `접속 정보 저장: ${result.savedTo} (OS 보안 저장소를 쓸 수 없어 비밀번호는 저장하지 않음)`,
       });
-      return active;
+      return result.id;
     } catch (err) {
       setStatus({ kind: "error", message: toMessage(err) });
       return null;
@@ -182,17 +169,23 @@ export function useConnectionViewModel(
     }
   }, [connectionClient, form, refresh]);
 
-  // Apply: 지금 폼 그대로 접속된 상태면 바로, 아니면 접속한 뒤 앱 화면으로 넘긴다
+  // Apply: 지금 폼 그대로 접속된 상태면 바로, 아니면 접속한 뒤
+  // main에 현재 접속으로 정하고 앱 화면으로 넘긴다
   const apply = useCallback(
     async (onApplied: (active: ActiveConnection) => void) => {
       const last = lastConnected.current;
-      const active =
+      const id =
         last && last.snapshot === JSON.stringify(form)
-          ? last.active
+          ? last.id
           : await connect();
-      if (active) onApplied(active);
+      if (!id) return;
+      try {
+        onApplied(await connectionClient.activate(id));
+      } catch (err) {
+        setStatus({ kind: "error", message: toMessage(err) });
+      }
     },
-    [connect, form],
+    [connect, connectionClient, form],
   );
 
   const listItems = useMemo(

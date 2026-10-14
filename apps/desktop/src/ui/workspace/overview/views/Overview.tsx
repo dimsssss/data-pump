@@ -15,12 +15,14 @@ function Overview({
   overview,
   status,
   onRefresh,
+  onLeave,
   onNewQuery,
 }: {
   connection: ActiveConnection;
   overview: DatabaseOverview | null;
   status: OverviewStatus;
   onRefresh: () => void;
+  onLeave: () => void;
   onNewQuery: () => void;
 }) {
   const vm = useOverviewViewModel(connection, overview);
@@ -65,6 +67,7 @@ function Overview({
         >
           <p className="min-w-0 flex-1">{status.message}</p>
           <Button label="다시 시도" size="sm" onClick={onRefresh} />
+          <Button label="접속 화면으로" size="sm" onClick={onLeave} />
         </div>
       )}
       {noDatabase ? (

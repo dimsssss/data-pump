@@ -22,4 +22,8 @@ contextBridge.exposeInMainWorld("connection", {
   },
   overview: (connectionId: string) =>
     ipcRenderer.invoke("connection:overview", connectionId),
+  activate: (connectionId: string) =>
+    ipcRenderer.invoke("connection:activate", connectionId),
+  getActive: () => ipcRenderer.invoke("connection:getActive"),
+  deactivate: () => ipcRenderer.invoke("connection:deactivate"),
 });
