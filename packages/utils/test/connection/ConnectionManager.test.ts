@@ -12,6 +12,16 @@ function fakeDriver(options: { fail?: string } = {}) {
       const label = `${params.host}#${++count}`;
       return {
         serverVersion: `fake-${label}`,
+        overview: async () => ({
+          database: label,
+          tables: [],
+          indexes: 0,
+          views: 0,
+          triggers: 0,
+          sizeBytes: 0,
+          encoding: "",
+          databases: [],
+        }),
         close: async () => {
           closed.push(label);
         },
@@ -68,6 +78,24 @@ describe("ConnectionManager", () => {
     const manager = new ConnectionManager(loadDriver, {});
     await expect(manager.connect("c1", "sqlite", {})).rejects.toThrow(
       "접속을 지원하지 않는 드라이버: sqlite",
+    );
+  });
+
+  it("overview는 해당 접속의 세션으로 조회한다", async () => {
+    const { driver } = fakeDriver();
+    const manager = new ConnectionManager(loadDriver, { fake: driver });
+    await manager.connect("a", "fake", { host: "x" });
+    await manager.connect("b", "fake", { host: "y" });
+
+    await expect(manager.overview("b")).resolves.toMatchObject({
+      database: "y#2",
+    });
+  });
+
+  it("접속하지 않은 connectionId의 overview는 거부한다", async () => {
+    const manager = new ConnectionManager(loadDriver, {});
+    await expect(manager.overview("none")).rejects.toThrow(
+      "접속되어 있지 않습니다",
     );
   });
 

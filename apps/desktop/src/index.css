@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @source "../../../packages/components";
 
+/* 피그마 타이포그래피: 코드·수치·제목은 JetBrains Mono (설치돼 있지 않으면 시스템 고정폭 글꼴) */
+@theme {
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 @layer base {
   html,
   body,

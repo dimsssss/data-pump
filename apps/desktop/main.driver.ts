@@ -4,6 +4,7 @@ import { ConnectionManager, DriverInstaller } from "@packages/utils";
 //   main → driver: { type: "init", config: { driverDir } }
 //                  { type: "install" | "ensure", id, name }
 //                  { type: "connect", id, connectionId, driver, params }
+//                  { type: "overview", id, connectionId }
 //                  { type: "disconnect", id, connectionId }
 //   driver → main: { type: "progress", name, percent }
 //                  { type: "result", id, ok: true, data } | { type: "result", id, ok: false, error }
@@ -25,6 +26,7 @@ const handlers: Record<string, (msg: any) => Promise<unknown>> = {
   ensure: (msg) => requireInit().installer.ensure(msg.name),
   connect: (msg) =>
     requireInit().connections.connect(msg.connectionId, msg.driver, msg.params),
+  overview: (msg) => requireInit().connections.overview(msg.connectionId),
   disconnect: (msg) => requireInit().connections.disconnect(msg.connectionId),
 };
 

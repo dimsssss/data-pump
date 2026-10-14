@@ -5,6 +5,7 @@ import {
   type ConnectionForm,
   type ConnectProgress,
   type ConnectResult,
+  type DatabaseOverview,
   type SavedConnection,
 } from "@packages/utils";
 import type { RequestDriver } from "../services/driver-process";
@@ -57,4 +58,12 @@ export async function listConnections(
   storage: ConnectionStorageService,
 ): Promise<SavedConnection[]> {
   return (await storage.list()).map(toSavedConnection);
+}
+
+// 접속할 때 driver process에 만든 세션으로 DB 개요를 조회한다
+export function getOverview(
+  connectionId: string,
+  requestDriver: RequestDriver,
+): Promise<DatabaseOverview> {
+  return requestDriver<DatabaseOverview>({ type: "overview", connectionId });
 }

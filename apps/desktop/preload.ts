@@ -20,4 +20,6 @@ contextBridge.exposeInMainWorld("connection", {
     ipcRenderer.on("connection:progress", listener);
     return () => ipcRenderer.removeListener("connection:progress", listener);
   },
+  overview: (connectionId: string) =>
+    ipcRenderer.invoke("connection:overview", connectionId),
 });

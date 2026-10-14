@@ -50,5 +50,7 @@ export type {
   ConnectProgress,
   ConnectResult,
   ConnectStage,
+  DatabaseOverview,
   SavedConnection,
+  TableSummary,
 } from "./client";

@@ -5,6 +5,7 @@ import started from "electron-squirrel-startup";
 import { ConnectionStorageService, type ConnectionForm } from "@packages/utils";
 import {
   connect,
+  getOverview,
   listConnections,
 } from "./src/data/repositories/connection-repository";
 import { createDriverProcess } from "./src/data/services/driver-process";
@@ -70,6 +71,10 @@ ipcMain.handle("connection:connect", (e, form: ConnectionForm) =>
     requestDriver: driverProcess.request,
     onProgress: (p) => e.sender.send("connection:progress", p),
   }),
+);
+
+ipcMain.handle("connection:overview", (_e, connectionId: string) =>
+  getOverview(connectionId, driverProcess.request),
 );
 
 // ---------------------------------------------------------------------------

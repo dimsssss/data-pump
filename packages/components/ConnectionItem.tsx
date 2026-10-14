@@ -9,13 +9,6 @@ export interface ConnectionItemProps {
   onSelect: () => void;
 }
 
-const DRIVER_BADGES: Record<string, { label: string; color: string }> = {
-  mysql: { label: "MY", color: "#00758F" },
-  sqlite: { label: "SL", color: "#0F80CC" },
-};
-
-const FALLBACK_BADGE = { label: "DB", color: "#4B5563" };
-
 export function ConnectionItem({
   name,
   driver,
@@ -23,8 +16,6 @@ export function ConnectionItem({
   selected,
   onSelect,
 }: ConnectionItemProps) {
-  const badge = DRIVER_BADGES[driver] ?? FALLBACK_BADGE;
-
   return (
     <li className="px-2">
       <button
@@ -36,7 +27,7 @@ export function ConnectionItem({
                    active:bg-[#10362A]/60
                    data-[selected=true]:bg-[#10362A]"
       >
-        <DriverBadge label={badge.label} color={badge.color} />
+        <DriverBadge driver={driver} />
         <div className="flex min-w-0 flex-1 flex-col gap-px">
           <p className="truncate text-xs/[normal] text-[#E6F2EC] group-data-[selected=true]:font-semibold">
             {name}

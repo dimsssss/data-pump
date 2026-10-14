@@ -1,5 +1,8 @@
 // DB와 직접 대화하는 계층.
 // 드라이버 모듈은 DriverInstaller.load로 받은 번들이며, 드라이버마다 사용법이 달라 Driver로 감싼다.
+import type { DatabaseOverview } from "../../../client";
+
+export type { DatabaseOverview };
 
 export interface ConnectParams {
   host?: string;
@@ -12,6 +15,8 @@ export interface ConnectParams {
 
 export interface DriverSession {
   serverVersion: string;
+  // 메타데이터 SQL은 DB마다 달라 드라이버가 구현한다
+  overview(): Promise<DatabaseOverview>;
   close(): Promise<void>;
 }
 

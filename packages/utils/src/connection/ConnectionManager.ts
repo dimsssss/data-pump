@@ -29,6 +29,13 @@ export class ConnectionManager {
     return { serverVersion: session.serverVersion };
   }
 
+  // 접속할 때 만든 세션으로 조회한다 (비밀번호를 다시 다루지 않는다)
+  async overview(connectionId: string) {
+    const session = this.sessions.get(connectionId);
+    if (!session) throw new Error("접속되어 있지 않습니다. 다시 접속하세요");
+    return session.overview();
+  }
+
   async disconnect(connectionId: string) {
     const session = this.sessions.get(connectionId);
     if (!session) return;

@@ -99,8 +99,12 @@ apps/desktop/
     │   ├── connection/
     │   │   ├── views/
     │   │   └── view-models/
-    │   └── workspace/
-    │       └── views/
+    │   └── workspace/      작업 화면 (상단 탭, 사이드바, 상태 바)
+    │       ├── views/
+    │       ├── view-models/
+    │       └── overview/   OVERVIEW 탭
+    │           ├── views/
+    │           └── view-models/
     └── data/               Data layer — 종류 단위로 나눈다
         ├── clients/        connection-client.ts, driver-client.ts
         ├── repositories/   connection-repository.ts
@@ -108,6 +112,7 @@ apps/desktop/
 ```
 
 - UI layer는 Flutter 가이드처럼 **기능 단위**로 나눕니다. 화면 하나와 ViewModel 하나가 같은 기능 디렉터리에 있습니다.
+- `ui/` 바로 아래에는 `App.tsx`가 전환하는 화면만 둡니다. 한 화면 안의 탭은 그 화면 디렉터리 아래에 `<탭>/views`, `<탭>/view-models`로 둡니다 (예: `workspace/overview/`).
 - Data layer는 **종류 단위**로 나눕니다. Repository와 Service는 여러 화면이 함께 쓰기 때문입니다.
 - 진입점 세 파일은 루트에 둡니다. Electron Forge의 Vite 플러그인이 진입점 파일 이름으로 빌드 결과물 이름(`main.js`, `preload.js`, `main.driver.js`)을 정하기 때문에, 디렉터리를 옮기더라도 파일 이름은 서로 달라야 합니다. `package.json`의 `main`과 `main.ts`의 preload·fork 경로가 이 이름에 의존합니다.
 

@@ -5,6 +5,8 @@ import { Tab } from "./Tab";
 import { DriverSelect } from "./DriverSelect";
 import { DriverCombobox } from "./DriverCombobox";
 import { Button } from "./Button";
+import { Card } from "./Card";
+import { StatusDot } from "./StatusDot";
 
 export { default as SqlEditor } from "./SqlEditor";
 export { default } from "./SqlEditor";
@@ -15,4 +17,6 @@ export { Field };
 export { DriverSelect, DriverCombobox };
 export { Tab };
 export { Button };
+export { Card };
+export { StatusDot };
 export type { DriverName } from "./DriverName";

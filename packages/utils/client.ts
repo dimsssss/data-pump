@@ -53,6 +53,12 @@ export interface ActiveConnection {
   name: string;
   driver: string;
   serverVersion: string;
+  // 접속한 데이터베이스 이름 (url로 접속했으면 비어 있을 수 있다)
+  database: string;
+  // 화면 표시용 접속 주소 (예: postgres@localhost:5432/mydb)
+  address: string;
+  // 접속에 성공한 시각 (ISO 8601)
+  connectedAt: string;
 }
 
 // 목록 표시·폼 채우기용 저장된 접속 정보. 비밀번호는 renderer로 보내지 않고 저장 여부만 알려준다
@@ -70,9 +76,34 @@ export interface SavedConnection {
   lastConnectedAt?: string;
 }
 
+// Overview 화면에 표시할 접속한 DB의 개요
+export interface TableSummary {
+  name: string;
+  rows: number;
+  // 정확한 행 수를 제한 시간 안에 세지 못해 DB 통계의 추정값을 썼으면 true
+  rowsEstimated: boolean;
+  // 데이터 + 인덱스 크기 (byte)
+  bytes: number;
+}
+
+export interface DatabaseOverview {
+  // 현재 데이터베이스. 지정하지 않고 접속했으면 null이고 나머지 값은 비어 있다
+  database: string | null;
+  tables: TableSummary[];
+  indexes: number;
+  views: number;
+  triggers: number;
+  sizeBytes: number;
+  encoding: string;
+  // 접근할 수 있는 사용자 데이터베이스 목록 (시스템 DB 제외)
+  databases: string[];
+}
+
 export interface ConnectionClient {
   list(): Promise<SavedConnection[]>;
   // form.id가 있고 password가 비어 있으면 저장된 비밀번호로 접속한다
   connect(form: ConnectionForm): Promise<ConnectResult>;
   onProgress(cb: (p: ConnectProgress) => void): () => void;
+  // 접속 중인 세션으로 DB 개요를 조회한다
+  overview(connectionId: string): Promise<DatabaseOverview>;
 }

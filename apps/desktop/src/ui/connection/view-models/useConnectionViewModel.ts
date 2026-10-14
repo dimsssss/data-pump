@@ -155,6 +155,9 @@ export function useConnectionViewModel(
         name: form.name.trim() || describeForm(connectedForm),
         driver: form.driver,
         serverVersion: result.serverVersion,
+        database: form.database,
+        address: `${describeForm(connectedForm)}${form.database ? `/${form.database}` : ""}`,
+        connectedAt: new Date().toISOString(),
       };
       lastConnected.current = {
         snapshot: JSON.stringify(connectedForm),
