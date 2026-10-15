@@ -8,6 +8,7 @@ import {
   type ConnectProgress,
   type ConnectResult,
   type DatabaseOverview,
+  type QueryResult,
   type SavedConnection,
 } from "@packages/utils";
 import type { RequestDriver } from "../services/driver-process";
@@ -121,4 +122,13 @@ export function getOverview(
   requestDriver: RequestDriver,
 ): Promise<DatabaseOverview> {
   return requestDriver<DatabaseOverview>({ type: "overview", connectionId });
+}
+
+// 접속할 때 만든 세션으로 SQL을 실행한다
+export function runQuery(
+  connectionId: string,
+  sql: string,
+  requestDriver: RequestDriver,
+): Promise<QueryResult> {
+  return requestDriver<QueryResult>({ type: "query", connectionId, sql });
 }

@@ -99,6 +99,28 @@ export interface DatabaseOverview {
   databases: string[];
 }
 
+// QUERY 탭에서 실행한 SQL의 결과.
+// IPC로 보낼 수 있고 화면에 바로 그릴 수 있게 값은 문자열·숫자·null로 바꿔 둔다
+export type QueryValue = string | number | null;
+
+export type QueryResult =
+  // SELECT·SHOW처럼 행을 돌려주는 문
+  | {
+      kind: "rows";
+      // 같은 이름의 열(예: JOIN한 두 테이블의 id)도 그대로 둔다
+      columns: string[];
+      rows: QueryValue[][];
+      // 결과가 너무 많아 앞부분만 담았으면 true
+      truncated: boolean;
+      durationMs: number;
+    }
+  // INSERT·UPDATE·DDL처럼 행 없이 영향받은 행 수만 돌려주는 문
+  | {
+      kind: "affected";
+      affectedRows: number;
+      durationMs: number;
+    };
+
 export interface ConnectionClient {
   list(): Promise<SavedConnection[]>;
   // form.id가 있고 password가 비어 있으면 저장된 비밀번호로 접속한다
@@ -106,6 +128,8 @@ export interface ConnectionClient {
   onProgress(cb: (p: ConnectProgress) => void): () => void;
   // 접속 중인 세션으로 DB 개요를 조회한다
   overview(connectionId: string): Promise<DatabaseOverview>;
+  // 접속 중인 세션으로 SQL 한 문장을 실행한다
+  query(connectionId: string, sql: string): Promise<QueryResult>;
   // 접속에 성공한 connectionId를 현재 접속으로 정한다 (Apply). 작업 화면에 표시할 정보를 돌려준다
   activate(connectionId: string): Promise<ActiveConnection>;
   // 현재 접속. 없거나 DB 세션이 끊겼으면 null (새로고침 후 화면 복원용)

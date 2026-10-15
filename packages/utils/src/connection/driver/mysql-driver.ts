@@ -1,8 +1,11 @@
 import {
   CONNECT_TIMEOUT_MS,
+  QUERY_ROW_LIMIT,
   type DatabaseOverview,
   type Driver,
+  type QueryResult,
 } from "./Driver";
+import type { QueryValue } from "../../../client";
 
 type Row = Record<string, unknown>;
 
@@ -15,6 +18,13 @@ interface Mysql2Module {
 
 interface MysqlConnection {
   query(sql: string): Promise<[Row[], unknown]>;
+  // rowsAsArray: 같은 이름의 열이 덮어쓰이지 않도록 행을 배열로 받는다
+  query(options: {
+    sql: string;
+    rowsAsArray: true;
+    dateStrings: true;
+    supportBigNumbers: true;
+  }): Promise<[unknown, unknown]>;
   end(): Promise<void>;
   destroy(): void;
 }
@@ -138,6 +148,72 @@ async function queryOverview(conn: MysqlConnection): Promise<DatabaseOverview> {
   };
 }
 
+// 바이너리 값은 앞부분만 16진수로 보여 준다
+const BINARY_PREVIEW_BYTES = 32;
+
+// mysql2가 돌려준 값을 IPC로 보낼 수 있고 화면에 그릴 수 있는 값으로 바꾼다
+function toQueryValue(value: unknown): QueryValue {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number" || typeof value === "string") return value;
+  if (typeof value === "bigint" || typeof value === "boolean")
+    return String(value);
+  // dateStrings로 날짜는 문자열로 오지만, 드라이버 설정에 따라 Date로 올 수도 있다
+  if (value instanceof Date)
+    return Number.isNaN(value.getTime()) ? String(value) : value.toISOString();
+  if (value instanceof Uint8Array) {
+    const hex = Array.from(value.subarray(0, BINARY_PREVIEW_BYTES), (b) =>
+      b.toString(16).padStart(2, "0"),
+    ).join("");
+    return `0x${hex}${value.length > BINARY_PREVIEW_BYTES ? "…" : ""}`;
+  }
+  // JSON 열은 mysql2가 객체로 파싱해 준다
+  return JSON.stringify(value);
+}
+
+// 실행 결과가 행 목록이 아니면(INSERT·UPDATE·DDL) ResultSetHeader 객체다
+async function runQuery(
+  conn: MysqlConnection,
+  sql: string,
+): Promise<QueryResult> {
+  const startedAt = performance.now();
+  // 마지막 세미콜론은 문장 구분자일 뿐이라 떼어 낸다 (한 번에 한 문장만 실행한다)
+  const [result, fields] = await conn.query({
+    sql: sql.trim().replace(/;+\s*$/, ""),
+    rowsAsArray: true,
+    // 날짜는 시간대 변환 없이 DB에 저장된 그대로 받는다
+    dateStrings: true,
+    // BIGINT·DECIMAL 중 Number로 정확히 나타낼 수 없는 값만 문자열로 받는다
+    supportBigNumbers: true,
+  });
+  const durationMs = Math.round(performance.now() - startedAt);
+
+  if (!Array.isArray(result)) {
+    const header = result as { affectedRows?: number };
+    return {
+      kind: "affected",
+      affectedRows: header.affectedRows ?? 0,
+      durationMs,
+    };
+  }
+
+  // CALL은 [결과 행들, ResultSetHeader]로 오므로 첫 결과 집합을 보여 준다
+  const isMultiResult = Array.isArray((fields as unknown[] | undefined)?.[0]);
+  const rows = (isMultiResult ? result[0] : result) as unknown[][];
+  const columns = (
+    ((isMultiResult ? (fields as unknown[])[0] : fields) ?? []) as {
+      name: string;
+    }[]
+  ).map((f) => f.name);
+
+  return {
+    kind: "rows",
+    columns,
+    rows: rows.slice(0, QUERY_ROW_LIMIT).map((row) => row.map(toQueryValue)),
+    truncated: rows.length > QUERY_ROW_LIMIT,
+    durationMs,
+  };
+}
+
 export const mysqlDriver: Driver = {
   async connect(driverModule, params) {
     const mysql = driverModule as Mysql2Module;
@@ -162,6 +238,7 @@ export const mysqlDriver: Driver = {
       return {
         serverVersion: String(rows[0]?.version ?? ""),
         overview: () => queryOverview(conn),
+        query: (sql) => runQuery(conn, sql),
         close: () => conn.end(),
       };
     } catch (err) {

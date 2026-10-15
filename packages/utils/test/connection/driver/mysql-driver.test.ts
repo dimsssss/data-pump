@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { mysqlDriver } from "../../../src/connection/driver";
+import { QUERY_ROW_LIMIT } from "../../../src/connection/driver/Driver";
 
 describe("mysqlDriver", () => {
   // mysql2의 createConnection(...).promise() 형태를 흉내 낸다
@@ -259,5 +260,121 @@ describe("mysqlDriver", () => {
     const session = await mysqlDriver.connect(mod, { host: "db" });
 
     await expect(session.overview()).resolves.toMatchObject({ database: null });
+  });
+
+  // 접속(VERSION()) 뒤 사용자 SQL에는 queryResult로 응답하는 세션
+  async function queryableSession(
+    queryResult: (options: { sql: string }) => [unknown, unknown],
+  ) {
+    const { mod } = fakeMysql2(async (arg) =>
+      typeof arg === "string"
+        ? [[{ version: "8.4.0" }], []]
+        : queryResult(arg as unknown as { sql: string }),
+    );
+    return mysqlDriver.connect(mod, { host: "db" });
+  }
+
+  it("query는 열 이름과 배열 행을 돌려준다 (같은 이름의 열도 유지)", async () => {
+    let received: unknown;
+    const session = await queryableSession((options) => {
+      received = options;
+      return [
+        [
+          [1, "kim", 10],
+          [2, null, 20],
+        ],
+        [{ name: "id" }, { name: "name" }, { name: "id" }],
+      ];
+    });
+
+    const result = await session.query("  SELECT * FROM a JOIN b;  ");
+
+    expect(received).toMatchObject({
+      sql: "SELECT * FROM a JOIN b",
+      rowsAsArray: true,
+    });
+    expect(result).toMatchObject({
+      kind: "rows",
+      columns: ["id", "name", "id"],
+      rows: [
+        [1, "kim", 10],
+        [2, null, 20],
+      ],
+      truncated: false,
+    });
+  });
+
+  it("query는 IPC로 보낼 수 없는 값을 화면용 값으로 바꾼다", async () => {
+    const session = await queryableSession(() => [
+      [
+        [
+          BigInt("9007199254740993"),
+          new Date("2026-01-02T03:04:05.000Z"),
+          Uint8Array.from([0xde, 0xad]),
+          { a: 1 },
+          undefined,
+        ],
+      ],
+      [
+        { name: "big" },
+        { name: "at" },
+        { name: "bin" },
+        { name: "json" },
+        { name: "u" },
+      ],
+    ]);
+
+    const result = await session.query("SELECT 1");
+
+    expect(result.kind === "rows" && result.rows[0]).toEqual([
+      "9007199254740993",
+      "2026-01-02T03:04:05.000Z",
+      "0xdead",
+      '{"a":1}',
+      null,
+    ]);
+  });
+
+  it(`query는 ${QUERY_ROW_LIMIT}행까지만 담고 truncated로 알린다`, async () => {
+    const rows = Array.from({ length: QUERY_ROW_LIMIT + 5 }, (_, i) => [i]);
+    const session = await queryableSession(() => [rows, [{ name: "n" }]]);
+
+    const result = await session.query("SELECT n FROM t");
+
+    expect(result.kind === "rows" && result.rows.length).toBe(QUERY_ROW_LIMIT);
+    expect(result).toMatchObject({ truncated: true });
+  });
+
+  it("행을 돌려주지 않는 문은 영향받은 행 수를 돌려준다", async () => {
+    const session = await queryableSession(() => [
+      { affectedRows: 3, insertId: 0 },
+      undefined,
+    ]);
+
+    await expect(session.query("UPDATE t SET a = 1")).resolves.toMatchObject({
+      kind: "affected",
+      affectedRows: 3,
+    });
+  });
+
+  it("CALL 결과는 첫 결과 집합을 보여 준다", async () => {
+    const session = await queryableSession(() => [
+      [[["x"]], { affectedRows: 0 }],
+      [[{ name: "col" }], undefined],
+    ]);
+
+    await expect(session.query("CALL p()")).resolves.toMatchObject({
+      kind: "rows",
+      columns: ["col"],
+      rows: [["x"]],
+    });
+  });
+
+  it("query 오류는 그대로 전달한다", async () => {
+    const session = await queryableSession(() => {
+      throw new Error("You have an error in your SQL syntax");
+    });
+
+    await expect(session.query("SELEC 1")).rejects.toThrow("SQL syntax");
   });
 });

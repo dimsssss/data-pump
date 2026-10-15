@@ -27,7 +27,7 @@ const compact = new Intl.NumberFormat("en", {
 export const formatCount = (n: number) => compact.format(n);
 
 // ipcRenderer.invoke가 붙이는 "Error invoking remote method '...': Error: " 접두어 제거
-const toMessage = (err: unknown) =>
+export const toMessage = (err: unknown) =>
   (err instanceof Error ? err.message : String(err)).replace(
     /^Error invoking remote method '[^']+': (?:\w*Error: )?/,
     "",

@@ -1,6 +1,6 @@
-import { SqlEditor } from "@packages/components";
 import type { ActiveConnection } from "@packages/utils/client";
 import Overview from "../overview/views/Overview";
+import Query from "../query/views/Query";
 import { useWorkspaceViewModel } from "../view-models/useWorkspaceViewModel";
 import { WorkspaceNav } from "./WorkspaceNav";
 import { WorkspaceSidebar } from "./WorkspaceSidebar";
@@ -43,9 +43,12 @@ function Workspace({
               onNewQuery={() => vm.setActiveTab("query")}
             />
           )}
-          {vm.activeTab === "query" && (
-            <SqlEditor className="absolute inset-0" />
-          )}
+          {/* 입력한 SQL과 결과를 유지하려고 QUERY 탭은 언마운트하지 않고 숨긴다 */}
+          <div
+            className={`absolute inset-0 ${vm.activeTab === "query" ? "" : "hidden"}`}
+          >
+            <Query connection={connection} />
+          </div>
           {(vm.activeTab === "tables" || vm.activeTab === "schema") && (
             <p className="p-8 text-[12px] text-[#7F9A8E]">TODO</p>
           )}

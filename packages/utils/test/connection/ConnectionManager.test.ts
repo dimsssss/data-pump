@@ -22,6 +22,13 @@ function fakeDriver(options: { fail?: string } = {}) {
           encoding: "",
           databases: [],
         }),
+        query: async (sql) => ({
+          kind: "rows",
+          columns: ["sql", "session"],
+          rows: [[sql, label]],
+          truncated: false,
+          durationMs: 0,
+        }),
         close: async () => {
           closed.push(label);
         },
@@ -95,6 +102,24 @@ describe("ConnectionManager", () => {
   it("접속하지 않은 connectionId의 overview는 거부한다", async () => {
     const manager = new ConnectionManager(loadDriver, {});
     await expect(manager.overview("none")).rejects.toThrow(
+      "접속되어 있지 않습니다",
+    );
+  });
+
+  it("query는 해당 접속의 세션으로 실행한다", async () => {
+    const { driver } = fakeDriver();
+    const manager = new ConnectionManager(loadDriver, { fake: driver });
+    await manager.connect("a", "fake", { host: "x" });
+    await manager.connect("b", "fake", { host: "y" });
+
+    await expect(manager.query("a", "SELECT 1")).resolves.toMatchObject({
+      rows: [["SELECT 1", "x#1"]],
+    });
+  });
+
+  it("접속하지 않은 connectionId의 query는 거부한다", async () => {
+    const manager = new ConnectionManager(loadDriver, {});
+    await expect(manager.query("none", "SELECT 1")).rejects.toThrow(
       "접속되어 있지 않습니다",
     );
   });

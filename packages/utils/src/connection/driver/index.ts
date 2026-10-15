@@ -6,6 +6,7 @@ export type {
   DatabaseOverview,
   Driver,
   DriverSession,
+  QueryResult,
 } from "./Driver";
 export { mysqlDriver } from "./mysql-driver";
 

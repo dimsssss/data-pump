@@ -1,5 +1,5 @@
 // main 진입점: 앱 생명주기·창 관리, 그리고 data layer를 조립해 IPC로 연결한다
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 import { ConnectionStorageService, type ConnectionForm } from "@packages/utils";
@@ -10,6 +10,7 @@ import {
   getActive,
   getOverview,
   listConnections,
+  runQuery,
 } from "./src/data/repositories/connection-repository";
 import { createDriverProcess } from "./src/data/services/driver-process";
 import { createSafeStorageSecrets } from "./src/data/services/secret-store";
@@ -80,6 +81,10 @@ ipcMain.handle("connection:overview", (_e, connectionId: string) =>
   getOverview(connectionId, driverProcess.request),
 );
 
+ipcMain.handle("connection:query", (_e, connectionId: string, sql: string) =>
+  runQuery(connectionId, sql, driverProcess.request),
+);
+
 ipcMain.handle("connection:activate", (_e, connectionId: string) =>
   activate(connectionId),
 );
@@ -91,6 +96,31 @@ ipcMain.handle("connection:deactivate", () => deactivate());
 // ---------------------------------------------------------------------------
 // 창, 앱 생명주기
 // ---------------------------------------------------------------------------
+
+// 배포 앱은 일반 데스크톱 앱처럼 새로고침이 없게 한다.
+// Electron 기본 메뉴의 View에 있는 Reload·Force Reload·Toggle Developer Tools를 빼고
+// 확대·축소와 전체 화면만 남긴다. 개발 실행에서는 기본 메뉴를 그대로 쓴다.
+// Edit 메뉴는 macOS에서 복사·붙여넣기 단축키가 동작하는 데 필요하므로 유지한다
+function setPackagedMenu() {
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
+      { role: "fileMenu" },
+      { role: "editMenu" },
+      {
+        label: "View",
+        submenu: [
+          { role: "resetZoom" },
+          { role: "zoomIn" },
+          { role: "zoomOut" },
+          { type: "separator" },
+          { role: "togglefullscreen" },
+        ],
+      },
+      { role: "windowMenu" },
+    ]),
+  );
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -133,6 +163,7 @@ app.on("activate", () => {
 });
 
 app.whenReady().then(() => {
+  if (app.isPackaged) setPackagedMenu();
   createWindow();
   driverProcess.start();
 });

@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld("connection", {
   },
   overview: (connectionId: string) =>
     ipcRenderer.invoke("connection:overview", connectionId),
+  query: (connectionId: string, sql: string) =>
+    ipcRenderer.invoke("connection:query", connectionId, sql),
   activate: (connectionId: string) =>
     ipcRenderer.invoke("connection:activate", connectionId),
   getActive: () => ipcRenderer.invoke("connection:getActive"),

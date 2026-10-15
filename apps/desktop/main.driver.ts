@@ -5,6 +5,7 @@ import { ConnectionManager, DriverInstaller } from "@packages/utils";
 //                  { type: "install" | "ensure", id, name }
 //                  { type: "connect", id, connectionId, driver, params }
 //                  { type: "overview", id, connectionId }
+//                  { type: "query", id, connectionId, sql }
 //                  { type: "has", id, connectionId }
 //                  { type: "disconnect", id, connectionId }
 //   driver → main: { type: "progress", name, percent }
@@ -28,6 +29,7 @@ const handlers: Record<string, (msg: any) => Promise<unknown>> = {
   connect: (msg) =>
     requireInit().connections.connect(msg.connectionId, msg.driver, msg.params),
   overview: (msg) => requireInit().connections.overview(msg.connectionId),
+  query: (msg) => requireInit().connections.query(msg.connectionId, msg.sql),
   has: async (msg) => requireInit().connections.has(msg.connectionId),
   disconnect: (msg) => requireInit().connections.disconnect(msg.connectionId),
 };

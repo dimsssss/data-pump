@@ -31,9 +31,11 @@ export class ConnectionManager {
 
   // 접속할 때 만든 세션으로 조회한다 (비밀번호를 다시 다루지 않는다)
   async overview(connectionId: string) {
-    const session = this.sessions.get(connectionId);
-    if (!session) throw new Error("접속되어 있지 않습니다. 다시 접속하세요");
-    return session.overview();
+    return this.session(connectionId).overview();
+  }
+
+  async query(connectionId: string, sql: string) {
+    return this.session(connectionId).query(sql);
   }
 
   async disconnect(connectionId: string) {
@@ -47,6 +49,12 @@ export class ConnectionManager {
     await Promise.all(
       [...this.sessions.keys()].map((id) => this.disconnect(id)),
     );
+  }
+
+  private session(connectionId: string) {
+    const session = this.sessions.get(connectionId);
+    if (!session) throw new Error("접속되어 있지 않습니다. 다시 접속하세요");
+    return session;
   }
 
   has(connectionId: string) {

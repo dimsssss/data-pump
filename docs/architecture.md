@@ -102,7 +102,10 @@ apps/desktop/
     │   └── workspace/      작업 화면 (상단 탭, 사이드바, 상태 바)
     │       ├── views/
     │       ├── view-models/
-    │       └── overview/   OVERVIEW 탭
+    │       ├── overview/   OVERVIEW 탭
+    │       │   ├── views/
+    │       │   └── view-models/
+    │       └── query/      QUERY 탭 (SQL 실행, 결과 표)
     │           ├── views/
     │           └── view-models/
     └── data/               Data layer — 종류 단위로 나눈다
