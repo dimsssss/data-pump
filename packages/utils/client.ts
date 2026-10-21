@@ -12,11 +12,6 @@ export interface DriverProgress {
   percent: number;
 }
 
-export interface DriverClient {
-  download(name: string): Promise<DriverInfo>;
-  onProgress(cb: (p: DriverProgress) => void): () => void;
-}
-
 // Connection 화면의 입력값. input 값 그대로 문자열로 주고받고, 변환·검증은 main에서 한다
 export interface ConnectionForm {
   // 저장된 접속 정보의 id. 처음 접속하면 main이 발급해 결과로 돌려준다
@@ -120,20 +115,3 @@ export type QueryResult =
       affectedRows: number;
       durationMs: number;
     };
-
-export interface ConnectionClient {
-  list(): Promise<SavedConnection[]>;
-  // form.id가 있고 password가 비어 있으면 저장된 비밀번호로 접속한다
-  connect(form: ConnectionForm): Promise<ConnectResult>;
-  onProgress(cb: (p: ConnectProgress) => void): () => void;
-  // 접속 중인 세션으로 DB 개요를 조회한다
-  overview(connectionId: string): Promise<DatabaseOverview>;
-  // 접속 중인 세션으로 SQL 한 문장을 실행한다
-  query(connectionId: string, sql: string): Promise<QueryResult>;
-  // 접속에 성공한 connectionId를 현재 접속으로 정한다 (Apply). 작업 화면에 표시할 정보를 돌려준다
-  activate(connectionId: string): Promise<ActiveConnection>;
-  // 현재 접속. 없거나 DB 세션이 끊겼으면 null (새로고침 후 화면 복원용)
-  getActive(): Promise<ActiveConnection | null>;
-  // 현재 접속을 해제한다 (작업 화면에서 접속 화면으로 돌아갈 때)
-  deactivate(): Promise<void>;
-}

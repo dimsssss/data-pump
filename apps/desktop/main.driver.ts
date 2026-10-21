@@ -1,41 +1,55 @@
-import { ConnectionManager, DriverInstaller } from "@packages/utils";
+import { DriverInstaller, SessionManager } from "@packages/utils";
+import type {
+  DriverEventMessage,
+  DriverInitMessage,
+  DriverRequest,
+  DriverRequestMessage,
+  DriverRequestType,
+  DriverResponses,
+} from "./src/driver/process-contract";
 
-// main ↔ driver utility process 메시지 규약
-//   main → driver: { type: "init", config: { driverDir } }
-//                  { type: "install" | "ensure", id, name }
-//                  { type: "connect", id, connectionId, driver, params }
-//                  { type: "overview", id, connectionId }
-//                  { type: "query", id, connectionId, sql }
-//                  { type: "has", id, connectionId }
-//                  { type: "disconnect", id, connectionId }
-//   driver → main: { type: "progress", name, percent }
-//                  { type: "result", id, ok: true, data } | { type: "result", id, ok: false, error }
+// main ↔ driver utility process 메시지 계약은 src/driver/process-contract.ts
 
 let installer: DriverInstaller | null = null;
-let connections: ConnectionManager | null = null;
+let sessions: SessionManager | null = null;
 
-const post = (message: unknown) => process.parentPort.postMessage(message);
+const post = (message: DriverEventMessage) =>
+  process.parentPort.postMessage(message);
 
 const requireInit = () => {
-  if (!installer || !connections)
+  if (!installer || !sessions)
     throw new Error("driver process가 초기화되지 않았습니다");
-  return { installer, connections };
+  return { installer, sessions };
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const handlers: Record<string, (msg: any) => Promise<unknown>> = {
+type Handlers = {
+  [K in DriverRequestType]: (
+    msg: Extract<DriverRequest, { type: K }>,
+  ) => Promise<DriverResponses[K]>;
+};
+
+const handlers: Handlers = {
   install: (msg) => requireInit().installer.install(msg.name),
   ensure: (msg) => requireInit().installer.ensure(msg.name),
   connect: (msg) =>
-    requireInit().connections.connect(msg.connectionId, msg.driver, msg.params),
-  overview: (msg) => requireInit().connections.overview(msg.connectionId),
-  query: (msg) => requireInit().connections.query(msg.connectionId, msg.sql),
-  has: async (msg) => requireInit().connections.has(msg.connectionId),
-  disconnect: (msg) => requireInit().connections.disconnect(msg.connectionId),
+    requireInit().sessions.connect(msg.connectionId, msg.driver, msg.params),
+  overview: (msg) => requireInit().sessions.overview(msg.connectionId),
+  query: (msg) => requireInit().sessions.query(msg.connectionId, msg.sql),
+  has: async (msg) => requireInit().sessions.has(msg.connectionId),
+  disconnect: (msg) => requireInit().sessions.disconnect(msg.connectionId),
 };
 
+// msg.type에 맞는 handler. 계약에 없는 type이면 undefined
+// (Handlers의 key와 msg.type이 같으므로 handler와 msg의 타입이 서로 맞는다)
+function findHandler(type: string) {
+  if (!Object.prototype.hasOwnProperty.call(handlers, type)) return undefined;
+  return handlers[type as DriverRequestType] as (
+    msg: DriverRequest,
+  ) => Promise<unknown>;
+}
+
 process.parentPort.on("message", async (e) => {
-  const msg = e.data ?? {};
+  const msg: DriverInitMessage | DriverRequestMessage = e.data ?? {};
 
   if (msg.type === "init") {
     if (!msg.config?.driverDir) {
@@ -50,11 +64,11 @@ process.parentPort.on("message", async (e) => {
       onProgress: (p) => post({ type: "progress", ...p }),
     });
     installer = driverInstaller;
-    connections = new ConnectionManager((name) => driverInstaller.load(name));
+    sessions = new SessionManager((name) => driverInstaller.load(name));
     return;
   }
 
-  const handler = handlers[msg.type];
+  const handler = findHandler(msg.type);
   if (!handler) return;
 
   try {

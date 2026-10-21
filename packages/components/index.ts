@@ -1,4 +1,4 @@
-import { ConnectionList } from "./ConnectionList";
+import { List } from "./List";
 import { DriverBadge } from "./DriverBadge";
 import { Field } from "./Field";
 import { Tab } from "./Tab";
@@ -10,8 +10,8 @@ import { StatusDot } from "./StatusDot";
 
 export { default as SqlEditor } from "./SqlEditor";
 export { default } from "./SqlEditor";
-export { ConnectionList };
-export type { ConnectionListItem } from "./ConnectionList";
+export { List };
+export type { ListItemData } from "./List";
 export { DriverBadge };
 export { Field };
 export { DriverSelect, DriverCombobox };

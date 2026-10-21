@@ -1,0 +1,10 @@
+/* 앱의 진입 CSS에서 `@import "@packages/components/styles.css"`로 불러온다.
+   tailwindcss import는 앱이 한 번만 하고, 여기서는 이 패키지를 클래스 탐색 대상에 추가한다. */
+@source "./";
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}

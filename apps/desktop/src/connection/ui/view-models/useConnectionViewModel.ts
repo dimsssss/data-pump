@@ -1,0 +1,189 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  ActiveConnection,
+  ConnectionForm,
+  ConnectStage,
+  SavedConnection,
+} from "@packages/utils/client";
+import { connectionApi } from "../../ipc.renderer";
+import { driverApi } from "../../../driver/ipc.renderer";
+import { EMPTY_FORM, toForm } from "../../model/connection-form";
+import { describeSavedConnection } from "../../model/connection-label";
+
+export type ConnectStatus =
+  | { kind: "idle" }
+  | { kind: "working"; message: string }
+  | { kind: "success"; message: string; detail: string }
+  | { kind: "error"; message: string };
+
+const STAGE_MESSAGES: Record<ConnectStage, string> = {
+  driver: "드라이버 확인 중…",
+  login: "로그인 중…",
+  save: "접속 정보 저장 중…",
+};
+
+// ipcRenderer.invoke가 붙이는 "Error invoking remote method '...': Error: " 접두어 제거
+const toMessage = (err: unknown) =>
+  (err instanceof Error ? err.message : String(err)).replace(
+    /^Error invoking remote method '[^']+': (?:\w*Error: )?/,
+    "",
+  );
+
+export function useConnectionViewModel(
+  connectionClient = connectionApi,
+  driverClient = driverApi,
+) {
+  const [form, setForm] = useState<ConnectionForm>(EMPTY_FORM);
+  const [status, setStatus] = useState<ConnectStatus>({ kind: "idle" });
+  const [connections, setConnections] = useState<SavedConnection[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const connecting = useRef(false);
+  // 마지막으로 접속에 성공했을 때의 폼 내용과 접속 id. 이후 폼을 고치면 다시 접속해야 한다
+  const lastConnected = useRef<{
+    snapshot: string;
+    id: string;
+  } | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setConnections(await connectionClient.list());
+    } catch (err) {
+      setStatus({
+        kind: "error",
+        message: `접속 목록을 불러오지 못했습니다: ${toMessage(err)}`,
+      });
+    }
+  }, [connectionClient]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const select = useCallback(
+    (id: string) => {
+      const saved = connections.find((c) => c.id === id);
+      if (!saved || connecting.current) return;
+      setSelectedId(id);
+      setForm(toForm(saved));
+      setStatus({ kind: "idle" });
+    },
+    [connections],
+  );
+
+  // 새 접속 정보 입력 (선택 해제). 이후 Connect하면 새 항목으로 저장된다
+  const createNew = useCallback(() => {
+    if (connecting.current) return;
+    setSelectedId(null);
+    setForm(EMPTY_FORM);
+    setStatus({ kind: "idle" });
+  }, []);
+
+  const setField = useCallback(
+    <K extends keyof ConnectionForm>(key: K, value: ConnectionForm[K]) =>
+      setForm((f) => ({ ...f, [key]: value })),
+    [],
+  );
+
+  // 접속 중에만 진행 상황을 화면에 반영
+  useEffect(() => {
+    const offStage = connectionClient.onProgress(({ stage }) => {
+      if (connecting.current)
+        setStatus({ kind: "working", message: STAGE_MESSAGES[stage] });
+    });
+    const offDownload = driverClient.onProgress(({ name, percent }) => {
+      if (connecting.current && percent < 100) {
+        setStatus({
+          kind: "working",
+          message: `${name} 드라이버 다운로드 중… ${percent}%`,
+        });
+      }
+    });
+    return () => {
+      offStage();
+      offDownload();
+    };
+  }, [connectionClient, driverClient]);
+
+  const connect = useCallback(async () => {
+    if (connecting.current) return null;
+    connecting.current = true;
+    setStatus({ kind: "working", message: STAGE_MESSAGES.driver });
+
+    try {
+      const result = await connectionClient.connect(form);
+      // 이후 다시 접속하면 같은 항목을 갱신하도록 발급된 id를 보관
+      const connectedForm = { ...form, id: result.id };
+      lastConnected.current = {
+        snapshot: JSON.stringify(connectedForm),
+        id: result.id,
+      };
+      setForm(connectedForm);
+      setSelectedId(result.id);
+      await refresh();
+      setStatus({
+        kind: "success",
+        message: `접속 성공 · ${form.driver} ${result.serverVersion}`,
+        detail: result.passwordSaved
+          ? `접속 정보 저장: ${result.savedTo}`
+          : `접속 정보 저장: ${result.savedTo} (OS 보안 저장소를 쓸 수 없어 비밀번호는 저장하지 않음)`,
+      });
+      return result.id;
+    } catch (err) {
+      setStatus({ kind: "error", message: toMessage(err) });
+      return null;
+    } finally {
+      connecting.current = false;
+    }
+  }, [connectionClient, form, refresh]);
+
+  // Apply: 지금 폼 그대로 접속된 상태면 바로, 아니면 접속한 뒤
+  // main에 현재 접속으로 정하고 앱 화면으로 넘긴다
+  const apply = useCallback(
+    async (onApplied: (active: ActiveConnection) => void) => {
+      const last = lastConnected.current;
+      const id =
+        last && last.snapshot === JSON.stringify(form)
+          ? last.id
+          : await connect();
+      if (!id) return;
+      try {
+        onApplied(await connectionClient.activate(id));
+      } catch (err) {
+        setStatus({ kind: "error", message: toMessage(err) });
+      }
+    },
+    [connect, connectionClient, form],
+  );
+
+  const listItems = useMemo(
+    () =>
+      connections.map((c) => ({
+        id: c.id,
+        name: c.name,
+        driver: c.driver,
+        description: describeSavedConnection(c),
+      })),
+    [connections],
+  );
+
+  // 선택한 항목에 저장된 비밀번호가 있고 새로 입력하지 않았으면 그것을 사용
+  const usesSavedPassword =
+    !form.password &&
+    connections.some((c) => c.id === form.id && c.hasPassword);
+
+  return {
+    form,
+    setField,
+    listItems,
+    selectedId,
+    select,
+    createNew,
+    usesSavedPassword,
+    status,
+    isConnecting: status.kind === "working",
+    connect,
+    apply,
+  };
+}
+
+export type ConnectionViewModel = ReturnType<typeof useConnectionViewModel>;

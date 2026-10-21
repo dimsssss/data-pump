@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@source "../../../packages/components";
+@import "@packages/components/styles.css";
 
 /* 피그마 타이포그래피: 코드·수치·제목은 JetBrains Mono (설치돼 있지 않으면 시스템 고정폭 글꼴) */
 @theme {
@@ -20,10 +20,6 @@
     font-family: "Inter", system-ui, sans-serif;
   }
 
-  button:not(:disabled) {
-    cursor: pointer;
-  }
-
   html {
     color-scheme: dark;
   }
@@ -32,11 +28,6 @@
     scrollbar-width: thin;
     scrollbar-color: #1f4a3c transparent; /* 막대 색, 트랙 색 */
   }
-}
-
-select,
-::picker(select) {
-  appearance: base-select;
 }
 
 /* 피그마 토큰: SQL Studio 연결 다이얼로그 */

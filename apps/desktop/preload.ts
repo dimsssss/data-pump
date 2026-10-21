@@ -1,31 +1,9 @@
 // preload 진입점: ui(renderer)가 data(main)에 접근하는 데 필요한 API만 노출한다.
-// ipcRenderer 자체는 노출하지 않는다 (renderer가 임의 채널을 호출할 수 없도록)
-// 노출한 API의 타입은 src/global.d.ts, 사용하는 쪽은 src/data/clients
-import { ipcRenderer, contextBridge } from "electron";
+// 노출하는 API는 도메인마다 ipc.preload.ts에, 계약(채널·타입)은 contract.ts에 있다
+import { exposeConnectionApi } from "./src/connection/ipc.preload";
+import { exposeDatabaseApi } from "./src/database/ipc.preload";
+import { exposeDriverApi } from "./src/driver/ipc.preload";
 
-contextBridge.exposeInMainWorld("driver", {
-  download: (name: string) => ipcRenderer.invoke("driver:install", name),
-  onProgress: (cb: (p: unknown) => void) => {
-    const listener = (_e: Electron.IpcRendererEvent, p: unknown) => cb(p);
-    ipcRenderer.on("driver:progress", listener);
-    return () => ipcRenderer.removeListener("driver:progress", listener);
-  },
-});
-
-contextBridge.exposeInMainWorld("connection", {
-  list: () => ipcRenderer.invoke("connection:list"),
-  connect: (form: unknown) => ipcRenderer.invoke("connection:connect", form),
-  onProgress: (cb: (p: unknown) => void) => {
-    const listener = (_e: Electron.IpcRendererEvent, p: unknown) => cb(p);
-    ipcRenderer.on("connection:progress", listener);
-    return () => ipcRenderer.removeListener("connection:progress", listener);
-  },
-  overview: (connectionId: string) =>
-    ipcRenderer.invoke("connection:overview", connectionId),
-  query: (connectionId: string, sql: string) =>
-    ipcRenderer.invoke("connection:query", connectionId, sql),
-  activate: (connectionId: string) =>
-    ipcRenderer.invoke("connection:activate", connectionId),
-  getActive: () => ipcRenderer.invoke("connection:getActive"),
-  deactivate: () => ipcRenderer.invoke("connection:deactivate"),
-});
+exposeDriverApi();
+exposeConnectionApi();
+exposeDatabaseApi();

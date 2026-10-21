@@ -21,6 +21,13 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "main.ts", "preload.ts", "*.d.ts", "main.driver.ts"],
+  "include": [
+    "src",
+    "test",
+    "main.ts",
+    "preload.ts",
+    "*.d.ts",
+    "main.driver.ts"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

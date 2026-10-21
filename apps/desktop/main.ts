@@ -2,18 +2,18 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
-import { ConnectionStorageService, type ConnectionForm } from "@packages/utils";
 import {
-  activate,
-  connect,
-  deactivate,
-  getActive,
-  getOverview,
-  listConnections,
-  runQuery,
-} from "./src/data/repositories/connection-repository";
-import { createDriverProcess } from "./src/data/services/driver-process";
-import { createSafeStorageSecrets } from "./src/data/services/secret-store";
+  createConnectionStorage,
+  type ConnectionStorage,
+} from "./src/connection/data/connection-storage";
+import { registerConnectionIpc } from "./src/connection/ipc.main";
+import { registerDatabaseIpc } from "./src/database/ipc.main";
+import { registerDriverIpc, sendDriverProgress } from "./src/driver/ipc.main";
+import { createConnectionRepository } from "./src/connection/data/connection-repository";
+import { createDatabaseRepository } from "./src/database/data/database-repository";
+import { createDriverProcess } from "./src/driver/data/driver-process";
+import { createDriverService } from "./src/driver/data/driver-service";
+import { createSafeStorageSecrets } from "./src/connection/data/secret-store";
 
 if (started) {
   app.quit();
@@ -42,7 +42,7 @@ let win: BrowserWindow | null = null;
 const driverProcess = createDriverProcess({
   entry: path.join(__dirname, "main.driver.js"),
   driverDir: path.join(app.getPath("userData"), "drivers"),
-  onProgress: (p) => win?.webContents.send("driver:progress", p),
+  onProgress: (p) => sendDriverProgress(win?.webContents, p),
 });
 
 // 접속 정보는 OS별 표준 앱 설정 위치에 저장한다 (app.getPath("userData"))
@@ -50,48 +50,27 @@ const driverProcess = createDriverProcess({
 //   Windows: %APPDATA%\data-pump\connections.json
 //   Linux:   $XDG_CONFIG_HOME/data-pump/connections.json (기본 ~/.config)
 // safeStorage는 app ready 이후에만 쓸 수 있어 처음 사용할 때 만든다
-let connectionStorage: ConnectionStorageService | null = null;
+let connectionStorage: ConnectionStorage | null = null;
 const getConnectionStorage = () =>
-  (connectionStorage ??= new ConnectionStorageService(
+  (connectionStorage ??= createConnectionStorage(
     path.join(app.getPath("userData"), "connections.json"),
     createSafeStorageSecrets(),
   ));
 
+const driverService = createDriverService(driverProcess.request);
+const connectionRepository = createConnectionRepository({
+  getStorage: getConnectionStorage,
+  driver: driverService,
+});
+const databaseRepository = createDatabaseRepository({ driver: driverService });
+
 // ---------------------------------------------------------------------------
-// IPC: preload.ts가 노출한 API와 짝을 이룬다
+// IPC: 채널과 핸들러는 도메인마다 ipc.main.ts에 있다 (preload 쪽은 ipc.preload.ts)
 // ---------------------------------------------------------------------------
 
-ipcMain.handle("driver:install", (_e, name: string) =>
-  driverProcess.request({ type: "install", name }),
-);
-
-ipcMain.handle("connection:list", () =>
-  listConnections(getConnectionStorage()),
-);
-
-ipcMain.handle("connection:connect", (e, form: ConnectionForm) =>
-  connect(form, {
-    storage: getConnectionStorage(),
-    requestDriver: driverProcess.request,
-    onProgress: (p) => e.sender.send("connection:progress", p),
-  }),
-);
-
-ipcMain.handle("connection:overview", (_e, connectionId: string) =>
-  getOverview(connectionId, driverProcess.request),
-);
-
-ipcMain.handle("connection:query", (_e, connectionId: string, sql: string) =>
-  runQuery(connectionId, sql, driverProcess.request),
-);
-
-ipcMain.handle("connection:activate", (_e, connectionId: string) =>
-  activate(connectionId),
-);
-
-ipcMain.handle("connection:getActive", () => getActive(driverProcess.request));
-
-ipcMain.handle("connection:deactivate", () => deactivate());
+registerDriverIpc(ipcMain, driverService);
+registerConnectionIpc(ipcMain, connectionRepository);
+registerDatabaseIpc(ipcMain, databaseRepository);
 
 // ---------------------------------------------------------------------------
 // 창, 앱 생명주기

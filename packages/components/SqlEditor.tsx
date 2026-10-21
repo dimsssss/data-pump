@@ -1,7 +1,6 @@
 import { useMemo, useRef } from "react";
 import CodeMirror, { keymap, Prec } from "@uiw/react-codemirror";
 import { sql } from "@codemirror/lang-sql";
-import "./index.css";
 
 function SqlEditor({
   value,

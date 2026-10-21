@@ -11,14 +11,10 @@ import {
   type DriverManifest,
   type ManifestEntry,
 } from "./src/installer/manifest";
-import {
-  type DriverClient,
-  type DriverInfo,
-  type DriverProgress,
-} from "./client";
+import { type DriverInfo, type DriverProgress } from "./client";
 
 export { DriverInstaller };
-export { DriverClient, DriverInfo, DriverProgress };
+export { DriverInfo, DriverProgress };
 export { downloadVerified };
 export { sha256, verifyFile };
 export {
@@ -30,22 +26,13 @@ export {
 };
 export { TRUSTED_KEYS };
 
-// driver는 connection 내부 구현이므로 입구에서 내보내지 않는다
+// driver는 session 내부 구현이므로 입구에서 내보내지 않는다
 export {
-  ConnectionManager,
+  SessionManager,
   type ConnectParams,
-} from "./src/connection/ConnectionManager";
-export {
-  ConnectionStorageService,
-  parseConnectionForm,
-  defaultConnectionName,
-  toSavedConnection,
-  type SecretStore,
-  type StoredConnection,
-} from "./src/connection/ConnectionStorageService";
+} from "./src/session/SessionManager";
 export type {
   ActiveConnection,
-  ConnectionClient,
   ConnectionForm,
   ConnectProgress,
   ConnectResult,

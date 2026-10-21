@@ -34,7 +34,8 @@
   },
   "exports": {
     ".": "./index.ts",
-    "./sqleditor": "./SqlEditor.tsx"
+    "./sqleditor": "./SqlEditor.tsx",
+    "./styles.css": "./styles.css"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
